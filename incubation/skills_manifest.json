@@ -1,0 +1,56 @@
+{
+  "agent_name": "Customer Success Digital FTE",
+  "version": "1.0.0",
+  "maturity_stage": "incubation",
+  "skills": [
+    {
+      "id": "ticket-management",
+      "name": "Ticket Management",
+      "description": "Create, track, and manage support tickets across all channels with automatic status transitions",
+      "tools": ["create_ticket"],
+      "guardrails": ["G6"]
+    },
+    {
+      "id": "knowledge-search",
+      "name": "Knowledge Base Search",
+      "description": "Semantic search of product documentation and resolved Q&A pairs using pgvector embeddings",
+      "tools": ["search_knowledge_base"],
+      "guardrails": ["G4"]
+    },
+    {
+      "id": "sentiment-analysis",
+      "name": "Sentiment Analysis",
+      "description": "Real-time sentiment scoring (0.0-1.0) on every inbound message using gpt-4o-mini",
+      "tools": ["analyze_sentiment"],
+      "guardrails": ["G5", "G9"]
+    },
+    {
+      "id": "escalation-handling",
+      "name": "Escalation Handling",
+      "description": "Detect guardrail triggers and escalate to human agents with full context",
+      "tools": ["escalate_to_human"],
+      "guardrails": ["G1", "G2", "G3", "G5"]
+    },
+    {
+      "id": "channel-routing",
+      "name": "Channel-Aware Response",
+      "description": "Send responses formatted for Gmail (formal), WhatsApp (conversational), or Web Form (semi-formal)",
+      "tools": ["send_response"],
+      "guardrails": ["G7", "G8"]
+    },
+    {
+      "id": "report-generation",
+      "name": "Daily Report Generation",
+      "description": "Generate daily sentiment and metrics reports with per-channel breakdown",
+      "tools": ["generate_daily_report"],
+      "guardrails": []
+    },
+    {
+      "id": "conversation-continuity",
+      "name": "Cross-Channel Continuity",
+      "description": "Retrieve and maintain customer conversation history across Gmail, WhatsApp, and Web Form",
+      "tools": ["get_customer_history"],
+      "guardrails": []
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+openapi: 3.1.0
+info:
+  title: Customer Success FTE — Health Endpoint
+  version: 1.0.0
+  description: System health check for K8s liveness and readiness probes.
+
+paths:
+  /health:
+    get:
+      operationId: getHealthStatus
+      summary: System health check
+      description: >
+        Returns status of all core dependencies. Used by Kubernetes
+        liveness and readiness probes. Returns 200 if all critical
+        services are healthy, 503 if any are down.
+      responses:
+        "200":
+          description: All systems healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [connected, disconnected]
+                          latency_ms:
+                            type: integer
+                      kafka:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [connected, disconnected]
+                          topics:
+                            type: integer
+                      gmail_api:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [available, unavailable, not_configured]
+                      twilio_api:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            enum: [available, unavailable, not_configured]
+        "503":
+          description: One or more critical services unhealthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [unhealthy]
+                  services:
+                    type: object

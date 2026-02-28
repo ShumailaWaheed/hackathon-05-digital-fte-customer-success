@@ -1,0 +1,69 @@
+{
+  "version": "1.0.0",
+  "constitution_principle": "VIII — Dual Tool Implementation",
+  "tools": [
+    {
+      "name": "search_knowledge_base",
+      "signature": "(query: str, max_results: int = 5)",
+      "description": "Search knowledge base using pgvector cosine similarity",
+      "mcp_path": "incubation/mcp_server/tools/search_knowledge_base.py",
+      "production_path": "production/agent/tools/search_knowledge_base.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    },
+    {
+      "name": "create_ticket",
+      "signature": "(customer_id: str, issue: str, priority: str, channel: str, metadata: dict)",
+      "description": "Create a support ticket — must be first step per Constitution III",
+      "mcp_path": "incubation/mcp_server/tools/create_ticket.py",
+      "production_path": "production/agent/tools/create_ticket.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    },
+    {
+      "name": "get_customer_history",
+      "signature": "(customer_id: str)",
+      "description": "Retrieve full cross-channel conversation history",
+      "mcp_path": "incubation/mcp_server/tools/get_customer_history.py",
+      "production_path": "production/agent/tools/get_customer_history.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    },
+    {
+      "name": "escalate_to_human",
+      "signature": "(ticket_id: str, reason: str)",
+      "description": "Escalate ticket to human agent with full context",
+      "mcp_path": "incubation/mcp_server/tools/escalate_to_human.py",
+      "production_path": "production/agent/tools/escalate_to_human.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    },
+    {
+      "name": "send_response",
+      "signature": "(ticket_id: str, message: str, channel: str)",
+      "description": "Send channel-formatted response with tone/length enforcement",
+      "mcp_path": "incubation/mcp_server/tools/send_response.py",
+      "production_path": "production/agent/tools/send_response.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    },
+    {
+      "name": "analyze_sentiment",
+      "signature": "(message: str) -> float 0.0-1.0",
+      "description": "Analyze message sentiment using gpt-4o-mini",
+      "mcp_path": "incubation/mcp_server/tools/analyze_sentiment.py",
+      "production_path": "production/agent/tools/analyze_sentiment.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    },
+    {
+      "name": "generate_daily_report",
+      "signature": "(date: str)",
+      "description": "Generate daily sentiment and metrics report",
+      "mcp_path": "incubation/mcp_server/tools/generate_daily_report.py",
+      "production_path": "production/agent/tools/generate_daily_report.py",
+      "mcp_status": "implemented",
+      "production_status": "implemented"
+    }
+  ]
+}

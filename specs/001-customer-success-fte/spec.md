@@ -161,6 +161,14 @@ The development team completes the incubation phase (MCP prototype), runs the tr
 11. **Rate limiting**: Same customer sends 50 messages in 1 minute — system processes all but flags for potential abuse.
 12. **Non-English message**: Customer writes in a non-English language — system attempts to respond in the same language or escalates if unsupported.
 
+## Clarifications
+
+### Session 2026-02-23
+
+- Q: What triggers ticket state transitions (open/in-progress/escalated/resolved/closed)? → A: Fully automatic — open→in-progress on workflow start, in-progress→resolved on successful response with non-negative sentiment, resolved→closed after 24h no reply, escalated requires human to resolve. G9 blocks closure if sentiment negative.
+- Q: What happens when external channel APIs (Gmail, Twilio) are unavailable? → A: Queue-and-retry with exponential backoff (max 3 attempts). If all fail, mark ticket "delivery-failed" and attempt alternate channel. Log for human review.
+- Q: How do operators monitor system health in real-time? → A: Lightweight — structured JSON logs to stdout (container-native) + `/health` endpoint returning DB, Kafka, and channel API status for orchestration probes.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -225,6 +233,21 @@ The development team completes the incubation phase (MCP prototype), runs the tr
 - **FR-032**: All channel messages MUST flow through a unified message queue for ingestion.
 - **FR-033**: System MUST be deployable to a container orchestration platform with manifests, container definitions, and a local development compose file.
 - **FR-034**: System MUST survive infrastructure disruptions (pod kills) without data loss or guardrail violations.
+- **FR-035**: When an external channel API (Gmail, Twilio) fails, the system MUST queue the outbound message for retry with exponential backoff (max 3 attempts). If all retries fail, the ticket MUST be marked "delivery-failed" and the system MUST attempt delivery via an alternate channel if available. Failed deliveries MUST be logged for human review.
+- **FR-036**: System MUST emit structured JSON logs to stdout for all operations (ticket creation, workflow steps, escalations, errors, API calls) to enable container-native log aggregation.
+- **FR-037**: System MUST expose a `/health` endpoint returning current status of core dependencies (database connection, message queue connection, channel API availability) for orchestration liveness/readiness probes.
+
+### Ticket Lifecycle
+
+Ticket state transitions are **automatic** unless escalated:
+
+1. **open** → **in-progress**: When the workflow begins (create_ticket completes).
+2. **in-progress** → **escalated**: When any guardrail (G1–G5) triggers. Requires human agent to resolve.
+3. **in-progress** → **resolved**: When the AI delivers a successful response and customer sentiment is non-negative (>= 0.3).
+4. **resolved** → **closed**: Automatically after 24 hours with no further customer reply. Guardrail G9 blocks closure if most recent sentiment is negative — ticket reverts to in-progress for human review.
+5. **escalated** → **resolved**: Only by human agent action.
+
+Human agents may override any transition at any time.
 
 ### Key Entities
 

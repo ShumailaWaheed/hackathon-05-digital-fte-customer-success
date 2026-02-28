@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fte-config
+  namespace: customer-success-fte
+data:
+  DATABASE_URL: "postgresql://fte_user:fte_pass@postgres:5432/fte_crm"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: "http://localhost:3000"
+  GMAIL_POLL_INTERVAL: "15"
+  LLM_BASE_URL: "https://api.groq.com/openai/v1"
+  LLM_MODEL: "llama-3.1-8b-instant"

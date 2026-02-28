@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: Customer Success FTE — Webhook Endpoints
+  version: 1.0.0
+  description: Webhook receivers for Gmail and Twilio WhatsApp channels.
+
+paths:
+  /webhooks/gmail:
+    post:
+      operationId: receiveGmailNotification
+      summary: Gmail Pub/Sub or polling trigger endpoint
+      description: >
+        Receives Gmail push notification or is called by the internal
+        polling loop when new emails are detected. Normalizes the email
+        into the unified message format and publishes to Kafka.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: object
+                  properties:
+                    data:
+                      type: string
+                      description: Base64-encoded notification
+                    messageId:
+                      type: string
+                subscription:
+                  type: string
+      responses:
+        "200":
+          description: Notification acknowledged
+        "400":
+          description: Invalid payload
+
+  /webhooks/whatsapp:
+    post:
+      operationId: receiveWhatsAppMessage
+      summary: Twilio WhatsApp webhook receiver
+      description: >
+        Receives inbound WhatsApp messages from Twilio. Validates
+        X-Twilio-Signature, normalizes message, publishes to Kafka.
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                MessageSid:
+                  type: string
+                From:
+                  type: string
+                  description: "whatsapp:+1234567890"
+                Body:
+                  type: string
+                NumMedia:
+                  type: string
+      responses:
+        "200":
+          description: Message received
+          content:
+            application/xml:
+              schema:
+                type: string
+                description: TwiML empty response
+        "403":
+          description: Invalid Twilio signature

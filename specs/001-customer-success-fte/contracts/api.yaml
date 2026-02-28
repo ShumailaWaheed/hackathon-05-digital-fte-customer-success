@@ -1,0 +1,146 @@
+openapi: 3.1.0
+info:
+  title: Customer Success Digital FTE API
+  version: 1.0.0
+  description: >
+    FastAPI endpoints for the omnichannel Customer Success AI FTE.
+    Handles webhook ingestion, web form support, health checks,
+    and daily report retrieval.
+
+paths:
+  /api/support:
+    post:
+      operationId: submitWebForm
+      summary: Submit a web support form request
+      description: >
+        Receives customer support request from the embeddable web form.
+        Creates ticket, processes through workflow, returns response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, category, message]
+              properties:
+                name:
+                  type: string
+                  maxLength: 255
+                email:
+                  type: string
+                  format: email
+                category:
+                  type: string
+                  enum:
+                    - billing-inquiry
+                    - technical-issue
+                    - feature-request
+                    - account-help
+                    - general-question
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+      responses:
+        "202":
+          description: Request accepted, processing initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [processing]
+                  message:
+                    type: string
+        "422":
+          description: Validation error
+
+  /api/support/{ticket_id}/status:
+    get:
+      operationId: getTicketStatus
+      summary: Poll for ticket response status
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Ticket status with response if ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [processing, responded, escalated]
+                  response:
+                    type: string
+                    nullable: true
+                  escalated:
+                    type: boolean
+        "404":
+          description: Ticket not found
+
+  /api/reports/daily:
+    get:
+      operationId: getDailyReport
+      summary: Get daily sentiment and performance report
+      parameters:
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Date for report (defaults to today)
+      responses:
+        "200":
+          description: Daily report data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  total_messages:
+                    type: integer
+                  average_sentiment:
+                    type: number
+                    format: float
+                  sentiment_trend:
+                    type: string
+                    enum: [improving, declining, stable]
+                  escalation_rate:
+                    type: number
+                    format: float
+                  top_issues:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        category:
+                          type: string
+                        count:
+                          type: integer
+                  channel_breakdown:
+                    type: object
+                    properties:
+                      gmail:
+                        type: object
+                      whatsapp:
+                        type: object
+                      webform:
+                        type: object
