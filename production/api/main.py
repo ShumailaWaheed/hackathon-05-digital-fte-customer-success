@@ -18,9 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from production.api.routes.webhooks import router as webhook_router
 from production.api.routes.reports import router as reports_router
+from production.api.routes.admin import router as admin_router
+from production.api.routes.health import router as health_router
 from production.api.middleware.logging import RequestLoggingMiddleware
-from production.database.connection import init_pool, close_pool, health_check as db_health
-from production.workers.kafka_config import ensure_topics_exist, kafka_health_check
+from production.database.connection import init_pool, close_pool
+from production.workers.kafka_config import ensure_topics_exist
 
 logger = logging.getLogger(__name__)
 
@@ -81,16 +83,5 @@ app.add_middleware(RequestLoggingMiddleware)
 # Routes
 app.include_router(webhook_router, tags=["support"])
 app.include_router(reports_router, tags=["reports"])
-
-
-@app.get("/health")
-async def health():
-    """Health check endpoint — verifies DB and Kafka connectivity."""
-    db = await db_health()
-    kafka = kafka_health_check()
-    overall = "healthy" if db["status"] == "healthy" else "unhealthy"
-    return {
-        "status": overall,
-        "database": db,
-        "kafka": kafka,
-    }
+app.include_router(admin_router)
+app.include_router(health_router, tags=["health"])

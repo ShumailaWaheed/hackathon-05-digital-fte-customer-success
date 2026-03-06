@@ -58,6 +58,7 @@ async def process_single_message(msg: dict) -> None:
             message_content=message_content,
             channel=channel,
             metadata=metadata,
+            existing_ticket_id=ticket_id,
         )
 
         action = result.get("action", "unknown")

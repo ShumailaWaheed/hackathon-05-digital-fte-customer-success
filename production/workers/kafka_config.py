@@ -100,13 +100,29 @@ def ensure_topics_exist() -> None:
 def publish_message(
     producer, topic: str, value: dict[str, Any], key: str | None = None
 ) -> None:
-    """Publish a JSON message to a Kafka topic."""
+    """Publish a JSON message to a Kafka topic.
+
+    Raises RuntimeError if Kafka is unreachable (flush returns unflushed messages).
+    """
+    if isinstance(producer, _StubProducer):
+        raise RuntimeError("Kafka unavailable — stub producer")
+    delivery_errors = []
+
+    def _on_delivery(err, msg):
+        if err:
+            delivery_errors.append(err)
+
     producer.produce(
         topic=topic,
         value=json.dumps(value, default=str).encode("utf-8"),
         key=key.encode("utf-8") if key else None,
+        callback=_on_delivery,
     )
-    producer.flush(timeout=5)
+    unflushed = producer.flush(timeout=5)
+    if unflushed > 0:
+        raise RuntimeError(f"Kafka flush timeout — {unflushed} message(s) not delivered")
+    if delivery_errors:
+        raise RuntimeError(f"Kafka delivery failed: {delivery_errors[0]}")
 
 
 def consume_messages(consumer, timeout: float = 1.0) -> dict | None:

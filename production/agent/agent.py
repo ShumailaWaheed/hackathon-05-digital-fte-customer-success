@@ -16,9 +16,9 @@ import uuid
 import logging
 from pathlib import Path
 
-from agents import Agent, Runner
+from agents import Agent, Runner, RunConfig, OpenAIProvider
 
-from .llm_client import get_chat_client, generate_embedding_async, LLM_MODEL
+from .llm_client import get_chat_client, generate_embedding_async, LLM_MODEL, LLM_BASE_URL, LLM_API_KEY
 from .tools.analyze_sentiment import analyze_sentiment
 from .tools.create_ticket import create_ticket
 from .tools.get_customer_history import get_customer_history
@@ -46,6 +46,15 @@ TOOLS = [
     send_response,
     generate_daily_report,
 ]
+
+
+def _get_provider() -> OpenAIProvider:
+    """Create an OpenAI-compatible provider pointing at Groq."""
+    return OpenAIProvider(
+        api_key=LLM_API_KEY,
+        base_url=LLM_BASE_URL,
+        use_responses=False,  # Groq doesn't support the responses API
+    )
 
 
 def create_agent() -> Agent:
@@ -114,12 +123,16 @@ async def process_message(
     message_content: str,
     channel: str,
     metadata: dict | None = None,
+    existing_ticket_id: str | None = None,
 ) -> dict:
     """Process an inbound message through the strict workflow.
 
     Enforces Constitution Principle III order programmatically:
       analyze_sentiment → create_ticket → get_customer_history →
       search_knowledge_base → (guardrail gate) → send_response | escalate
+
+    Args:
+        existing_ticket_id: If provided, reuses this ticket instead of creating a new one.
 
     Returns:
         dict with 'action', 'ticket_id', and details.
@@ -136,14 +149,17 @@ async def process_message(
 
     # Step 1: create_ticket (G6 — ticket-first mandate)
     try:
-        ticket = await repositories.create_ticket(
-            customer_id=cid,
-            issue=message_content,
-            channel=channel,
-            priority="high" if triggered else "medium",
-            metadata=metadata,
-        )
-        ticket_id = ticket["id"]  # UUID
+        if existing_ticket_id:
+            ticket_id = uuid.UUID(existing_ticket_id)
+        else:
+            ticket = await repositories.create_ticket(
+                customer_id=cid,
+                issue=message_content,
+                channel=channel,
+                priority="high" if triggered else "medium",
+                metadata=metadata,
+            )
+            ticket_id = ticket["id"]  # UUID
         await repositories.update_ticket_status(ticket_id, "in-progress")
     except Exception as e:
         logger.error("Failed to create ticket: %s", e)
@@ -208,7 +224,45 @@ async def process_message(
                 "sentiment": sentiment_score,
             })
         except Exception as e:
-            logger.error("Kafka escalation publish failed: %s", e)
+            logger.warning("Kafka escalation publish failed: %s", e)
+
+        # Send empathy message directly to customer
+        empathy_msg = (
+            "I understand your frustration and I'm sorry for the inconvenience. "
+            "Your request has been escalated to a human agent who will follow up "
+            "with you shortly. We want to make sure you get the best possible help."
+        )
+        try:
+            if channel == "whatsapp":
+                phone = (metadata or {}).get("phone", "")
+                if phone:
+                    from production.channels.whatsapp_handler import TwilioWhatsAppClient
+                    client = TwilioWhatsAppClient()
+                    await client.send_reply(phone, empathy_msg)
+                    logger.info("Escalation empathy message sent via WhatsApp to %s", phone)
+            elif channel == "gmail":
+                email_addr = (metadata or {}).get("email", "")
+                if email_addr:
+                    from production.channels.gmail_handler import GmailClient
+                    client = GmailClient()
+                    await client.send_reply(email_addr, empathy_msg)
+                    logger.info("Escalation empathy message sent via Gmail to %s", email_addr)
+        except Exception as de:
+            logger.error("Escalation direct delivery failed: %s", de)
+
+        # Store escalation message in DB
+        try:
+            conv = await repositories.get_active_conversation(cid)
+            if conv:
+                await repositories.create_message(
+                    conversation_id=conv["id"],
+                    direction="outbound",
+                    channel=channel,
+                    content=empathy_msg,
+                    ticket_id=ticket_id,
+                )
+        except Exception:
+            pass
 
         # Record metric
         await repositories.create_agent_metric(
@@ -244,7 +298,8 @@ async def process_message(
     )
 
     try:
-        result = await Runner.run(agent, context_prompt)
+        run_config = RunConfig(model_provider=_get_provider())
+        result = await Runner.run(agent, context_prompt, run_config=run_config)
         response_text = result.final_output or "I'll look into this for you."
     except Exception as e:
         logger.error("Agent response generation failed: %s", e)
@@ -270,16 +325,38 @@ async def process_message(
     except Exception as e:
         logger.warning("Channel formatting failed: %s", e)
 
-    # Publish to outbound Kafka topic
+    # Publish to outbound Kafka topic, fallback to direct channel delivery
+    sent_via_kafka = False
     try:
         producer = get_producer()
         publish_message(producer, "outbound-responses", {
             "ticket_id": str(ticket_id),
             "channel": channel,
             "message": response_text,
+            "metadata": metadata or {},
         })
+        sent_via_kafka = True
     except Exception as e:
-        logger.error("Kafka outbound publish failed: %s", e)
+        logger.warning("Kafka outbound publish failed, sending directly: %s", e)
+
+    if not sent_via_kafka:
+        try:
+            if channel == "whatsapp":
+                phone = (metadata or {}).get("phone", "")
+                if phone:
+                    from production.channels.whatsapp_handler import TwilioWhatsAppClient
+                    client = TwilioWhatsAppClient()
+                    await client.send_reply(phone, response_text)
+                    logger.info("WhatsApp reply sent directly to %s", phone)
+            elif channel == "gmail":
+                email_addr = (metadata or {}).get("email", "")
+                if email_addr:
+                    from production.channels.gmail_handler import GmailClient
+                    client = GmailClient()
+                    await client.send_reply(email_addr, response_text)
+                    logger.info("Gmail reply sent directly to %s", email_addr)
+        except Exception as de:
+            logger.error("Direct channel delivery failed: %s", de)
 
     # Resolve ticket if sentiment is non-negative
     if sentiment_score >= 0.3:

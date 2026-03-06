@@ -46,7 +46,7 @@ CREATE TABLE tickets (
     channel VARCHAR(20) NOT NULL CHECK (channel IN ('gmail', 'whatsapp', 'webform')),
     issue TEXT NOT NULL,
     priority VARCHAR(10) NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
-    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in-progress', 'escalated', 'resolved', 'closed', 'delivery-failed')),
+    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in-progress', 'escalated', 'resolved', 'closed', 'delivery-failed', 'pending_approval')),
     escalation_reason TEXT,
     resolved_at TIMESTAMPTZ,
     closed_at TIMESTAMPTZ,

@@ -76,6 +76,7 @@ async def process_webform_message(
             message_content=message,
             channel="webform",
             metadata={"category": category, "email": email, "name": name},
+            existing_ticket_id=ticket_id,
         )
 
     return {"ticket_id": ticket_id, "customer_id": customer_id}

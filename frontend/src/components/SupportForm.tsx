@@ -1,15 +1,9 @@
-/**
- * T034: React support form with Zod client-side validation.
- *
- * Fields: name, email, category dropdown, message textarea.
- * On submit: calls POST /api/support, returns ticket_id to parent.
- */
-
 "use client";
 
 import { useState } from "react";
 import { z } from "zod";
 import { submitSupportForm, type SupportFormData } from "@/lib/api";
+import { showToast } from "./Toast";
 
 const CATEGORIES = [
   { value: "billing-inquiry", label: "Billing Inquiry" },
@@ -33,7 +27,7 @@ const formSchema = z.object({
 });
 
 interface SupportFormProps {
-  onSubmitted: (ticketId: string) => void;
+  onSubmitted: (ticketId: string, message: string) => void;
 }
 
 export default function SupportForm({ onSubmitted }: SupportFormProps) {
@@ -54,7 +48,6 @@ export default function SupportForm({ onSubmitted }: SupportFormProps) {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear field error on change
     if (errors[name]) {
       setErrors((prev) => {
         const next = { ...prev };
@@ -68,7 +61,6 @@ export default function SupportForm({ onSubmitted }: SupportFormProps) {
     e.preventDefault();
     setSubmitError(null);
 
-    // Validate
     const result = formSchema.safeParse(formData);
     if (!result.success) {
       const fieldErrors: Record<string, string> = {};
@@ -87,7 +79,8 @@ export default function SupportForm({ onSubmitted }: SupportFormProps) {
 
     try {
       const response = await submitSupportForm(formData);
-      onSubmitted(response.ticket_id);
+      showToast("Ticket created! Processing your request...", "info");
+      onSubmitted(response.ticket_id, formData.message);
     } catch (err) {
       setSubmitError(
         err instanceof Error ? err.message : "Failed to submit form"
@@ -98,72 +91,84 @@ export default function SupportForm({ onSubmitted }: SupportFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="support-form">
-      <div className="form-group">
-        <label htmlFor="name">Name</label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="Your full name"
-          disabled={submitting}
-        />
-        {errors.name && <span className="error">{errors.name}</span>}
-      </div>
+    <div className="glass-card">
+      <form onSubmit={handleSubmit} className="support-form">
+        <div className="form-group">
+          <label htmlFor="name">Your Name</label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Enter your full name"
+            disabled={submitting}
+          />
+          {errors.name && <span className="error">{errors.name}</span>}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleChange}
-          placeholder="you@example.com"
-          disabled={submitting}
-        />
-        {errors.email && <span className="error">{errors.email}</span>}
-      </div>
+        <div className="form-group">
+          <label htmlFor="email">Email Address</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            disabled={submitting}
+          />
+          {errors.email && <span className="error">{errors.email}</span>}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="category">Category</label>
-        <select
-          id="category"
-          name="category"
-          value={formData.category}
-          onChange={handleChange}
-          disabled={submitting}
-        >
-          {CATEGORIES.map((cat) => (
-            <option key={cat.value} value={cat.value}>
-              {cat.label}
-            </option>
-          ))}
-        </select>
-        {errors.category && <span className="error">{errors.category}</span>}
-      </div>
+        <div className="form-group">
+          <label htmlFor="category">Issue Category</label>
+          <select
+            id="category"
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            disabled={submitting}
+          >
+            {CATEGORIES.map((cat) => (
+              <option key={cat.value} value={cat.value}>
+                {cat.label}
+              </option>
+            ))}
+          </select>
+          {errors.category && <span className="error">{errors.category}</span>}
+        </div>
 
-      <div className="form-group">
-        <label htmlFor="message">Message</label>
-        <textarea
-          id="message"
-          name="message"
-          value={formData.message}
-          onChange={handleChange}
-          placeholder="Describe your issue or question..."
-          rows={5}
-          disabled={submitting}
-        />
-        {errors.message && <span className="error">{errors.message}</span>}
-      </div>
+        <div className="form-group">
+          <label htmlFor="message">Your Message</label>
+          <textarea
+            id="message"
+            name="message"
+            value={formData.message}
+            onChange={handleChange}
+            placeholder="Describe your issue or question in detail..."
+            rows={5}
+            disabled={submitting}
+          />
+          <span className="char-count">{formData.message.length} / 10,000</span>
+          {errors.message && <span className="error">{errors.message}</span>}
+        </div>
 
-      {submitError && <div className="submit-error">{submitError}</div>}
+        {submitError && <div className="submit-error">{submitError}</div>}
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? "Submitting..." : "Submit Support Request"}
-      </button>
-    </form>
+        <button type="submit" className="submit-btn" disabled={submitting}>
+          <span className="btn-content">
+            {submitting ? (
+              <>
+                <span className="btn-spinner" />
+                Processing...
+              </>
+            ) : (
+              "Send Message"
+            )}
+          </span>
+        </button>
+      </form>
+    </div>
   );
 }
